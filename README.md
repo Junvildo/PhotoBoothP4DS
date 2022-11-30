@@ -29,7 +29,7 @@ Khi commit nhớ ghi rõ nội dung
 - [ ] Áp dụng các bộ lọc màu cho ảnh.
 - [ ] Thay đổi resolution ảnh, video.
 ### Các chức năng frontend cần làm: 
-###Người chịu trách nhiệm: 
+### Người chịu trách nhiệm: 
 #### Dựa theo frontend của photo booth (cần thiết)
 - [ ] Button chụp ảnh, video.
 - [ ] Button chuyển giữa 2 chế độ chụp và quay video.
