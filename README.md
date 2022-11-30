@@ -55,7 +55,7 @@ https://youtu.be/aGDFryrgSqc
 ## Code ví dụ cho chương trình
 ```python
 from PIL import Image, ImageTk
-import Tkinter as tk
+import tkinter as tk
 import argparse
 import datetime
 import cv2
@@ -101,7 +101,7 @@ class Application:
         ts = datetime.datetime.now() # grab the current timestamp
         filename = "{}.jpg".format(ts.strftime("%Y-%m-%d_%H-%M-%S"))  # construct filename
         p = os.path.join(self.output_path, filename)  # construct output path
-        self.current_image.save(p, "JPEG")  # save image as jpeg file
+        self.current_image.save(p, "PNG")  # save image as png file
         print("[INFO] saved {}".format(filename))
  
     def destructor(self):
