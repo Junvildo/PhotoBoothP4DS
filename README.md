@@ -1,5 +1,12 @@
 # PhotoBoothP4DS
 
+## Lưu ý
+Tránh code trên branch `main`, làm việc trên branch thể hiện nhiệm vụ của mình
+
+vd: `FrontEnd_TenNguoiCode`
+
+Khi commit nhớ ghi rõ nội dung
+
 ## Công việc bao gồm:
 * Viết code các hàm xử lý ảnh, thực hiện chức năng nền ảo, load file, nói chung là backend.
 * Viết code để tạo cửa sổ cho chương trình, frontend.
