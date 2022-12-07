@@ -18,13 +18,12 @@ Khi commit nhớ ghi rõ nội dung
 ## Các chức năng backend cần làm:
 ### Người chịu trách nhiệm: 
 #### Quan trọng
-- [ ] Khởi chạy chương trình.
-- [ ] Lấy dữ liệu từ webcam.
-- [ ] Chụp ảnh.
-- [ ] Quay video.
+- [x] Khởi chạy chương trình.
+- [x] Lấy dữ liệu từ webcam.
+- [x] Chụp ảnh.
 - [ ] Virtual Background.
 - [ ] Thay đổi đường dẫn thư mục lưu ảnh/ video được ghi lại.
-- [ ] Đặt tên cho ảnh, video đã ghi.
+- [x] Đặt tên cho ảnh, video đã ghi.
 #### Nếu có thời gian
 - [ ] Áp dụng các bộ lọc màu cho ảnh.
 - [ ] Thay đổi resolution ảnh, video.
