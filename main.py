@@ -190,13 +190,27 @@ if __name__ == "__main__":
 import tkinter as tk
 import cv2
 import PIL.Image, PIL.ImageTk
-import tkinter.messagebox
 import datetime
 import os
 from notifypy import Notify
+import cvzone
+from cvzone.SelfiSegmentationModule import SelfiSegmentation
+
+
+
 class VideoFeed:
     def __init__(self, video_source):
         self.vid = cv2.VideoCapture(video_source)
+        self.segmentor = SelfiSegmentation()
+        self.is_segment = True
+        self.wallpaper_list = ["Capybara-4K.jpg", "flower.jpg", "wall1.jpg"]
+        self.imgBG = cv2.imread("./wallpapers/" + self.wallpaper_list[0])
+        self.imgBG = cv2.resize(self.imgBG, 
+                                (
+                                    int(self.vid.get(cv2.CAP_PROP_FRAME_WIDTH)),
+                                    int(self.vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                                ), 
+                                interpolation=cv2.INTER_LINEAR)
         if not self.vid.isOpened():
             raise ValueError("Unable to open video source",video_source)
         self.width = self.vid.get(cv2.CAP_PROP_FRAME_WIDTH)
@@ -211,9 +225,14 @@ class VideoFeed:
             ret, frame = self.vid.read()
             frame = cv2.resize(frame,(640,480))
             if ret:
+                if self.is_segment == True:
+                    frame = self.segmentor.removeBG(frame, self.imgBG, threshold=.4)
                 return (ret, cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
             else:
                 return (ret,None)
+
+
+
 
 class App:
     def __init__(self, window, window_title,video_source = 0, output_path="./"):
@@ -234,6 +253,9 @@ class App:
         take_pic = tk.Button(self.window, text="Take Photo!", command=self.take_snapshot)
         take_pic.pack(fill="both", expand=True, padx=10, pady=10)
 
+        
+        
+
 
 
         self.delay = 1
@@ -246,7 +268,7 @@ class App:
         ret, frame = self.vid.get_frame()
         if ret:
             self.photo = PIL.ImageTk.PhotoImage(image = PIL.Image.fromarray(frame))
-            self.canvas.create_image(0, 0, image = self.photo, anchor = tkinter.NW)
+            self.canvas.create_image(0, 0, image = self.photo, anchor = tk.NW)
         self.window.after(self.delay, self.update)
 
     def take_snapshot(self):
@@ -260,7 +282,7 @@ class App:
             self.photo.save(p, "JPEG")
             self.send_noti(filename)
 
-    def send_noti(filename):
+    def send_noti(self, filename):
         notification = Notify()
         
         notification.title = "PhotoBooth"
