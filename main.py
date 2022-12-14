@@ -201,8 +201,6 @@ from cvzone.SelfiSegmentationModule import SelfiSegmentation
 class VideoFeed:
     def __init__(self, video_source):
         self.vid = cv2.VideoCapture(video_source)
-        self.segmentor = SelfiSegmentation()
-        self.is_segment = True
         self.wallpaper_list = ["Capybara-4K.jpg", "flower.jpg", "wall1.jpg"]
         self.imgBG = cv2.imread("./wallpapers/" + self.wallpaper_list[0])
         self.imgBG = cv2.resize(self.imgBG, 
@@ -225,8 +223,6 @@ class VideoFeed:
             ret, frame = self.vid.read()
             frame = cv2.resize(frame,(640,480))
             if ret:
-                if self.is_segment == True:
-                    frame = self.segmentor.removeBG(frame, self.imgBG, threshold=.4)
                 return (ret, cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
             else:
                 return (ret,None)
@@ -240,6 +236,12 @@ class App:
         self.window = window
         self.window.title(window_title)
 
+        self.segmentor = SelfiSegmentation()
+        self.is_segment = False
+
+        #self.feed_state = "B&W"
+        self.feed_state = "Inverse"
+
         self.video_source = video_source
         self.output_path=output_path
 
@@ -250,13 +252,8 @@ class App:
         self.canvas.pack()
 
             # Buttons
-        take_pic = tk.Button(self.window, text="Take Photo!", command=self.take_snapshot)
+        take_pic = tk.Button(self.window, text="Take Photo!", command=self.take_photo)
         take_pic.pack(fill="both", expand=True, padx=10, pady=10)
-
-        
-        
-
-
 
         self.delay = 1
         self.update()
@@ -267,12 +264,13 @@ class App:
     def update(self):
         ret, frame = self.vid.get_frame()
         if ret:
+            frame = self.set_feed_state(state=self.feed_state, curr_frame=frame)
             self.photo = PIL.ImageTk.PhotoImage(image = PIL.Image.fromarray(frame))
             self.canvas.create_image(0, 0, image = self.photo, anchor = tk.NW)
         self.window.after(self.delay, self.update)
 
-    def take_snapshot(self):
-        """ Take snapshot and save it to the file """
+    def take_photo(self):
+        """ Take photo and save it to the file """
         ret, frame = self.vid.get_frame()
         ts = datetime.datetime.now()
         filename = "{}.jpg".format(ts.strftime("%Y-%m-%d_%H-%M-%S"))
@@ -288,6 +286,17 @@ class App:
         notification.title = "PhotoBooth"
         notification.message = f"{filename} saved successfully"
         notification.send()
+
+
+    def set_feed_state(self, curr_frame, state = "Default"):
+        if state == "B&W":
+            curr_frame = cv2.cvtColor(curr_frame, cv2.COLOR_BGR2GRAY)
+        if state == "Inverse":
+            curr_frame = cv2.cvtColor(curr_frame, cv2.COLOR_RGB2BGR)
+        else:
+            curr_frame = cv2.cvtColor(curr_frame, cv2.COLOR_BGR2RGB)
+        
+        return curr_frame
 
         
 
