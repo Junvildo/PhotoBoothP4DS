@@ -188,6 +188,7 @@ if __name__ == "__main__":
     App(tk.Tk(), "Photo Booth", 0)
 =======
 import tkinter as tk
+from tkinter import ttk
 import cv2
 import PIL.Image, PIL.ImageTk
 import datetime
@@ -201,14 +202,6 @@ from cvzone.SelfiSegmentationModule import SelfiSegmentation
 class VideoFeed:
     def __init__(self, video_source):
         self.vid = cv2.VideoCapture(video_source)
-        self.wallpaper_list = ["Capybara-4K.jpg", "flower.jpg", "wall1.jpg"]
-        self.imgBG = cv2.imread("./wallpapers/" + self.wallpaper_list[0])
-        self.imgBG = cv2.resize(self.imgBG, 
-                                (
-                                    int(self.vid.get(cv2.CAP_PROP_FRAME_WIDTH)),
-                                    int(self.vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                                ), 
-                                interpolation=cv2.INTER_LINEAR)
         if not self.vid.isOpened():
             raise ValueError("Unable to open video source",video_source)
         self.width = self.vid.get(cv2.CAP_PROP_FRAME_WIDTH)
@@ -223,7 +216,7 @@ class VideoFeed:
             ret, frame = self.vid.read()
             frame = cv2.resize(frame,(640,480))
             if ret:
-                return (ret, cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+                return (ret, frame)
             else:
                 return (ret,None)
 
@@ -237,12 +230,23 @@ class App:
         self.window.title(window_title)
 
         self.segmentor = SelfiSegmentation()
-        self.is_segment = False
+        self.is_segment = 0
+        self.wallpaper_list = ["Capybara-4K.jpg", "flower.jpg", "wall1.jpg"]
+        self.imgBG = cv2.imread("./wallpapers/" + self.wallpaper_list[0])
 
-        #self.feed_state = "B&W"
-        self.feed_state = "Inverse"
+        self.feed_state = "Default"
 
         self.video_source = video_source
+
+
+        self.imgBG = cv2.resize(self.imgBG, 
+                                (
+                                    640,
+                                    480
+                                ), 
+                                interpolation=cv2.INTER_LINEAR)
+        self.imgBG = cv2.cvtColor(self.imgBG, cv2.COLOR_BGR2RGB)
+
         self.output_path=output_path
 
         # App Layout and Elements
@@ -251,20 +255,61 @@ class App:
         self.canvas = tk.Canvas(window, width = self.vid.width, height = self.vid.height)
         self.canvas.pack()
 
-            # Buttons
+            # Take Picture Button
         take_pic = tk.Button(self.window, text="Take Photo!", command=self.take_photo)
         take_pic.pack(fill="both", expand=True, padx=10, pady=10)
+
+
+
+            # Filters List
+        self.selected_filter = tk.StringVar()
+        filters = ttk.Combobox(window, textvariable=self.selected_filter)
+        filters['values'] = ("Default", "Black & White", "Inverse")
+        filters.pack(fill="both", expand=True, padx=10, pady=10)
+        filters.current(0)
+        filters['state'] = 'readonly'
+        filters.bind('<<ComboboxSelected>>', self.apply_filter)
+
+            # Virtual Background
+        toggle_VBG = tk.Button(self.window, text="Toggle Virtual Background", command=self.VBG)
+        toggle_VBG.pack(fill="both", expand=True, padx=10, pady=10)
+
+        self.selected_VBG = tk.StringVar()
+        VBG = ttk.Combobox(window, textvariable=self.selected_VBG)
+        VBG['values'] = self.wallpaper_list[:]
+        VBG.pack(fill="both", expand=True, padx=10, pady=10)
+        VBG.current(0)
+        VBG['state'] = 'readonly'
+        VBG.bind('<<ComboboxSelected>>', self.apply_VBG)
 
         self.delay = 1
         self.update()
 
         self.window.mainloop()
 
+    def VBG(self):
+        self.is_segment = 1 - self.is_segment
+
+    def apply_VBG(self, *args):
+        self.imgBG = cv2.imread("./wallpapers/" + self.selected_VBG.get())
+
+        self.imgBG = cv2.resize(self.imgBG, 
+                                (
+                                    640,
+                                    480
+                                ), 
+                                interpolation=cv2.INTER_LINEAR)
+        self.imgBG = cv2.cvtColor(self.imgBG, cv2.COLOR_BGR2RGB)
+
+    def apply_filter(self, *args):
+        self.feed_state = self.selected_filter.get()
 
     def update(self):
         ret, frame = self.vid.get_frame()
         if ret:
-            frame = self.set_feed_state(state=self.feed_state, curr_frame=frame)
+            frame = self.set_feed_state(curr_frame=frame)
+            if self.is_segment != 0:
+                frame = self.segmentor.removeBG(frame, self.imgBG, threshold=.5)
             self.photo = PIL.ImageTk.PhotoImage(image = PIL.Image.fromarray(frame))
             self.canvas.create_image(0, 0, image = self.photo, anchor = tk.NW)
         self.window.after(self.delay, self.update)
@@ -288,15 +333,15 @@ class App:
         notification.send()
 
 
-    def set_feed_state(self, curr_frame, state = "Default"):
-        if state == "B&W":
+    def set_feed_state(self, curr_frame):
+        if self.feed_state == "Black & White":
             curr_frame = cv2.cvtColor(curr_frame, cv2.COLOR_BGR2GRAY)
-        if state == "Inverse":
-            curr_frame = cv2.cvtColor(curr_frame, cv2.COLOR_RGB2BGR)
+        if self.feed_state == "Inverse":
+            curr_frame == cv2.bitwise_not(curr_frame)
         else:
             curr_frame = cv2.cvtColor(curr_frame, cv2.COLOR_BGR2RGB)
-        
         return curr_frame
+        
 
         
 
