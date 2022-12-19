@@ -1,67 +1,175 @@
-from PIL import Image, ImageTk
 import tkinter as tk
-import argparse
-import datetime
+from tkinter import ttk
 import cv2
+import PIL.Image, PIL.ImageTk
+import datetime
 import os
- 
-class Application:
-    def __init__(self, output_path = "./"):
-        """ Initialize application which uses OpenCV + Tkinter. It displays
-            a video stream in a Tkinter window and stores current snapshot on disk """
-        self.vs = cv2.VideoCapture(0) # capture video frames, 0 is your default video camera
-        self.output_path = output_path  # store output path
-        self.current_image = None  # current image from the camera
- 
-        self.root = tk.Tk()  # initialize root window
-        self.root.title("PyImageSearch PhotoBooth")  # set window title
-        # self.destructor function gets fired when the window is closed
-        self.root.protocol('WM_DELETE_WINDOW', self.destructor)
- 
-        self.panel = tk.Label(self.root)  # initialize image panel
-        self.panel.pack(padx=10, pady=10)
- 
-        # create a button, that when pressed, will take the current frame and save it to file
-        btn = tk.Button(self.root, text="Snapshot!", command=self.take_snapshot)
-        btn.pack(fill="both", expand=True, padx=10, pady=10)
- 
-        # start a self.video_loop that constantly pools the video sensor
-        # for the most recently read frame
-        self.video_loop()
- 
-    def video_loop(self):
-        """ Get frame from the video stream and show it in Tkinter """
-        ok, frame = self.vs.read()  # read frame from video stream
-        if ok:  # frame captured without any errors
-            cv2image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGBA)  # convert colors from BGR to RGBA
-            self.current_image = Image.fromarray(cv2image)  # convert image for PIL
-            imgtk = ImageTk.PhotoImage(image=self.current_image)  # convert image for tkinter
-            self.panel.imgtk = imgtk  # anchor imgtk so it does not be deleted by garbage-collector
-            self.panel.config(image=imgtk)  # show the image
-        self.root.after(30, self.video_loop)  # call the same function after 30 milliseconds
- 
-    def take_snapshot(self):
-        """ Take snapshot and save it to the file """
-        ts = datetime.datetime.now() # grab the current timestamp
-        filename = "{}.jpg".format(ts.strftime("%Y-%m-%d_%H-%M-%S"))  # construct filename
-        p = os.path.join(self.output_path, filename)  # construct output path
-        self.current_image.save(p, "PNG")  # save image as png file
-        print("[INFO] saved {}".format(filename))
- 
-    def destructor(self):
-        """ Destroy the root object and release all resources """
-        print("[INFO] closing...")
-        self.root.destroy()
-        self.vs.release()  # release web camera
-        cv2.destroyAllWindows()  # it is not mandatory in this application
- 
-# construct the argument parse and parse the arguments
-ap = argparse.ArgumentParser()
-ap.add_argument("-o", "--output", default="./",
-    help="path to output directory to store snapshots (default: current folder")
-args = vars(ap.parse_args())
- 
-# start the app
-print("[INFO] starting...")
-pba = Application(args["output"])
-pba.root.mainloop()
+
+from PIL import ImageTk, Image
+from notifypy import Notify
+import cvzone
+from cvzone.SelfiSegmentationModule import SelfiSegmentation
+
+
+class VideoFeed:
+    def __init__(self, video_source):
+        self.vid = cv2.VideoCapture(video_source)
+        if not self.vid.isOpened():
+            raise ValueError("Unable to open video source", video_source)
+        self.width = self.vid.get(cv2.CAP_PROP_FRAME_WIDTH)
+        self.height = self.vid.get(cv2.CAP_PROP_FRAME_HEIGHT)
+
+    def __del__(self):
+        if self.vid.isOpened():
+            self.vid.release()
+
+    def get_frame(self):
+        if self.vid.isOpened():
+            ret, frame = self.vid.read()
+            frame = cv2.resize(frame, (640, 480))
+            if ret:
+                return (ret, frame)
+            else:
+                return (ret, None)
+
+
+class App:
+    def __init__(self, window, window_title, video_source=0, output_path="./"):
+        # App Variables
+        self.window = window
+        self.window.title(window_title)
+
+        self.segmentor = SelfiSegmentation()
+        self.is_segment = 0
+        self.wallpaper_list = ["Capybara-4K.jpg", "flower.jpg", "wall1.jpg"]
+        self.imgBG = cv2.imread("./wallpapers/" + self.wallpaper_list[0])
+
+        self.feed_state = "Default"
+
+        self.video_source = video_source
+
+        self.imgBG = cv2.resize(self.imgBG,
+                                (
+                                    640,
+                                    480
+                                ),
+                                interpolation=cv2.INTER_LINEAR)
+        self.imgBG = cv2.cvtColor(self.imgBG, cv2.COLOR_BGR2RGB)
+
+        self.output_path = output_path
+
+        # App Layout and Elements
+        f11 = tk.Frame(self.window)
+        f12 = tk.Frame(self.window)
+
+        # Video Feed
+        self.vid = VideoFeed(video_source)
+        self.canvas = tk.Canvas(f11, width=self.vid.width, height=self.vid.height, bg="black")
+        self.canvas.grid(column=0, row=0)
+
+        # Take Picture Button
+        img = cv2.imread("pic.png")
+        img = cv2.resize(img, (70, 40))
+        img = cv2.imwrite("pic.png", img)
+        img1 = ImageTk.PhotoImage(Image.open("pic.png"))
+
+        take_pic = tk.Button(f12, image=img1, command=self.take_photo, background="black")
+        take_pic.grid(column=2, row=0)
+
+        # Filters List
+        filter_list = tk.Label(f12, text="Filters", bg="black", fg="white", width=20)
+        filter_list.grid(column=0, row=0)
+
+        self.selected_filter = tk.StringVar()
+        filters = ttk.Combobox(f12, textvariable=self.selected_filter)
+        filters['values'] = ("Default", "Black & White", "Inverse")
+        filters.grid(column=0, row=1)
+
+        filters.current(0)
+        filters['state'] = 'readonly'
+        filters.bind('<<ComboboxSelected>>', self.apply_filter)
+
+        # Virtual Background
+        toggle_VBG = tk.Button(f12, text="Toggle Virtual Background", command=self.VBG, fg="white", background="black")
+        toggle_VBG.grid(column=4, row=0)
+
+        self.selected_VBG = tk.StringVar()
+        VBG = ttk.Combobox(f12, textvariable=self.selected_VBG)
+        VBG['values'] = self.wallpaper_list[:]
+        VBG.grid(column=4, row=1)
+
+        VBG.current(0)
+        VBG['state'] = 'readonly'
+        VBG.bind('<<ComboboxSelected>>', self.apply_VBG)
+
+        # Arrange Layout
+        temp1 = tk.Label(f12, text="", width=5)
+        temp2 = tk.Label(f12, text="", width=5)
+        temp1.grid(column=1, row=0)
+        temp2.grid(column=3, row=0)
+
+        f11.pack()
+        f12.pack()
+
+        self.delay = 1
+        self.update()
+
+        self.window.mainloop()
+
+    def VBG(self):
+        self.is_segment = 1 - self.is_segment
+
+    def apply_VBG(self, *args):
+        self.imgBG = cv2.imread("./wallpapers/" + self.selected_VBG.get())
+
+        self.imgBG = cv2.resize(self.imgBG,
+                                (
+                                    640,
+                                    480
+                                ),
+                                interpolation=cv2.INTER_LINEAR)
+        self.imgBG = cv2.cvtColor(self.imgBG, cv2.COLOR_BGR2RGB)
+
+    def apply_filter(self, *args):
+        self.feed_state = self.selected_filter.get()
+
+    def update(self):
+        ret, frame = self.vid.get_frame()
+        if ret:
+            frame = self.set_feed_state(curr_frame=frame)
+            if self.is_segment != 0:
+                frame = self.segmentor.removeBG(frame, self.imgBG, threshold=.5)
+            self.photo = PIL.ImageTk.PhotoImage(image=PIL.Image.fromarray(frame))
+            self.canvas.create_image(0, 0, image=self.photo, anchor=tk.NW)
+        self.window.after(self.delay, self.update)
+
+    def take_photo(self):
+        """ Take photo and save it to the file """
+        ret, frame = self.vid.get_frame()
+        ts = datetime.datetime.now()
+        filename = "{}.jpg".format(ts.strftime("%Y-%m-%d_%H-%M-%S"))
+        p = os.path.join(self.output_path, filename)
+        if ret:
+            self.photo = PIL.Image.fromarray(frame)
+            self.photo.save(p, "JPEG")
+            self.send_noti(filename)
+
+    def send_noti(self, filename):
+        notification = Notify()
+
+        notification.title = "PhotoBooth"
+        notification.message = f"{filename} saved successfully"
+        notification.send()
+
+    def set_feed_state(self, curr_frame):
+        if self.feed_state == "Black & White":
+            curr_frame = cv2.cvtColor(curr_frame, cv2.COLOR_BGR2GRAY)
+        if self.feed_state == "Inverse":
+            curr_frame == cv2.bitwise_not(curr_frame)
+        else:
+            curr_frame = cv2.cvtColor(curr_frame, cv2.COLOR_BGR2RGB)
+        return curr_frame
+
+
+if __name__ == "__main__":
+    App(tk.Tk(), "Photo Booth", 0)
