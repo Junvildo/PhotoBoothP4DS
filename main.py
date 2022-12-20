@@ -77,26 +77,28 @@ class App:
         take_pic.grid(column=2, row=0)
 
         # Filters List
-        filter_list = tk.Label(f12, text="Filters", bg="black", fg="white", width=20)
+        filter_list = tk.Label(f12, text="Filters", fg="black", font="Times 13 bold")
         filter_list.grid(column=0, row=0)
 
         self.selected_filter = tk.StringVar()
-        filters = ttk.Combobox(f12, textvariable=self.selected_filter)
+        filters = ttk.Combobox(f12, textvariable=self.selected_filter, font="Times 14")
         filters['values'] = ("Default", "Black & White", "Inverse")
-        filters.grid(column=0, row=1)
+        filters.grid(column=0, row=2)
 
         filters.current(0)
         filters['state'] = 'readonly'
         filters.bind('<<ComboboxSelected>>', self.apply_filter)
 
         # Virtual Background
-        toggle_VBG = tk.Button(f12, text="Toggle Virtual Background", command=self.VBG, fg="white", background="black")
+        global toggle_VBG
+        toggle_VBG = tk.Button(f12, text="Toggle Virtual Background: OFF", command=self.VBG, font="Times 13",
+                               fg="white", bg="black", height=1)
         toggle_VBG.grid(column=4, row=0)
 
         self.selected_VBG = tk.StringVar()
-        VBG = ttk.Combobox(f12, textvariable=self.selected_VBG)
+        VBG = ttk.Combobox(f12, textvariable=self.selected_VBG, font="Times 14")
         VBG['values'] = self.wallpaper_list[:]
-        VBG.grid(column=4, row=1)
+        VBG.grid(column=4, row=2)
 
         VBG.current(0)
         VBG['state'] = 'readonly'
@@ -105,8 +107,13 @@ class App:
         # Arrange Layout
         temp1 = tk.Label(f12, text="", width=5)
         temp2 = tk.Label(f12, text="", width=5)
+        temp3 = tk.Label(f12, text="", width=5)
+        temp4 = tk.Label(f12, text="", width=5)
+
         temp1.grid(column=1, row=0)
         temp2.grid(column=3, row=0)
+        temp3.grid(column=0, row=1)
+        temp4.grid(column=4, row=1)
 
         f11.pack()
         f12.pack()
@@ -117,7 +124,12 @@ class App:
         self.window.mainloop()
 
     def VBG(self):
+
         self.is_segment = 1 - self.is_segment
+        if toggle_VBG['text'] == 'Toggle Virtual Background: OFF':
+            toggle_VBG['text'] = 'Toggle Virtual Background: ON'
+        else:
+            toggle_VBG['text'] = 'Toggle Virtual Background: OFF'
 
     def apply_VBG(self, *args):
         self.imgBG = cv2.imread("./wallpapers/" + self.selected_VBG.get())
