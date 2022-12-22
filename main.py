@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import tkinter as tk
 from tkinter import ttk
 import cv2
@@ -185,3 +186,89 @@ class App:
 
 if __name__ == "__main__":
     App(tk.Tk(), "Photo Booth", 0)
+=======
+import tkinter as tk
+import cv2
+import PIL.Image, PIL.ImageTk
+import tkinter.messagebox
+import datetime
+import os
+from notifypy import Notify
+class VideoFeed:
+    def __init__(self, video_source):
+        self.vid = cv2.VideoCapture(video_source)
+        if not self.vid.isOpened():
+            raise ValueError("Unable to open video source",video_source)
+        self.width = self.vid.get(cv2.CAP_PROP_FRAME_WIDTH)
+        self.height = self.vid.get(cv2.CAP_PROP_FRAME_HEIGHT)
+
+    def __del__(self):
+        if self.vid.isOpened():
+            self.vid.release()
+
+    def get_frame(self):
+        if self.vid.isOpened():
+            ret, frame = self.vid.read()
+            frame = cv2.resize(frame,(640,480))
+            if ret:
+                return (ret, cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+            else:
+                return (ret,None)
+
+class App:
+    def __init__(self, window, window_title,video_source = 0, output_path="./"):
+        # App Variables
+        self.window = window
+        self.window.title(window_title)
+
+        self.video_source = video_source
+        self.output_path=output_path
+
+        # App Layout and Elements
+            # Video Feed
+        self.vid = VideoFeed(video_source)    
+        self.canvas = tk.Canvas(window, width = self.vid.width, height = self.vid.height)
+        self.canvas.pack()
+
+            # Buttons
+        take_pic = tk.Button(self.window, text="Take Photo!", command=self.take_snapshot)
+        take_pic.pack(fill="both", expand=True, padx=10, pady=10)
+
+
+
+        self.delay = 1
+        self.update()
+
+        self.window.mainloop()
+
+
+    def update(self):
+        ret, frame = self.vid.get_frame()
+        if ret:
+            self.photo = PIL.ImageTk.PhotoImage(image = PIL.Image.fromarray(frame))
+            self.canvas.create_image(0, 0, image = self.photo, anchor = tkinter.NW)
+        self.window.after(self.delay, self.update)
+
+    def take_snapshot(self):
+        """ Take snapshot and save it to the file """
+        ret, frame = self.vid.get_frame()
+        ts = datetime.datetime.now()
+        filename = "{}.jpg".format(ts.strftime("%Y-%m-%d_%H-%M-%S"))
+        p = os.path.join(self.output_path, filename)
+        if ret:
+            self.photo = PIL.Image.fromarray(frame)
+            self.photo.save(p, "JPEG")
+            self.send_noti(filename)
+
+    def send_noti(filename):
+        notification = Notify()
+        
+        notification.title = "PhotoBooth"
+        notification.message = f"{filename} saved successfully"
+        notification.send()
+
+        
+
+if __name__ == "__main__":
+    App(tk.Tk(), "get_video",0)
+>>>>>>> 19af2fe (Init, read webcam, take pic, naming)
