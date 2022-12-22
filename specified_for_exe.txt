@@ -8,7 +8,7 @@ a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[('wallpapers/*.jpg', 'wallpapers)],
+    datas=[],
     hiddenimports=['PIL._tkinter_finder', 'cvzone.SelfiSegmentationModule', 'mediapipe.python.solutions.selfie_segmentation', 'mediapipe.python.solution_base'],
     hookspath=[],
     hooksconfig={},
