@@ -18,17 +18,17 @@ Khi commit nhớ ghi rõ nội dung
 ## Các chức năng backend cần làm:
 ### Người chịu trách nhiệm: 
 #### Quan trọng
-- [x] Khởi chạy chương trình.
-- [x] Lấy dữ liệu từ webcam.
-- [x] Chụp ảnh.
+- [ ] Khởi chạy chương trình.
+- [ ] Lấy dữ liệu từ webcam.
+- [ ] Chụp ảnh.
 - [ ] Virtual Background.
 - [ ] Thay đổi đường dẫn thư mục lưu ảnh/ video được ghi lại.
-- [x] Đặt tên cho ảnh, video đã ghi.
+- [ ] Đặt tên cho ảnh, video đã ghi.
 #### Nếu có thời gian
 - [ ] Áp dụng các bộ lọc màu cho ảnh.
 - [ ] Thay đổi resolution ảnh, video.
 ### Các chức năng frontend cần làm: 
-### Người chịu trách nhiệm: 
+###Người chịu trách nhiệm: 
 #### Dựa theo frontend của photo booth (cần thiết)
 - [ ] Button chụp ảnh, video.
 - [ ] Button chuyển giữa 2 chế độ chụp và quay video.
@@ -54,7 +54,7 @@ https://youtu.be/aGDFryrgSqc
 ## Code ví dụ cho chương trình
 ```python
 from PIL import Image, ImageTk
-import tkinter as tk
+import Tkinter as tk
 import argparse
 import datetime
 import cv2
@@ -100,7 +100,7 @@ class Application:
         ts = datetime.datetime.now() # grab the current timestamp
         filename = "{}.jpg".format(ts.strftime("%Y-%m-%d_%H-%M-%S"))  # construct filename
         p = os.path.join(self.output_path, filename)  # construct output path
-        self.current_image.save(p, "PNG")  # save image as png file
+        self.current_image.save(p, "JPEG")  # save image as jpeg file
         print("[INFO] saved {}".format(filename))
  
     def destructor(self):
