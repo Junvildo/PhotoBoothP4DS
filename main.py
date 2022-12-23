@@ -89,11 +89,21 @@ class App:
                                fg="white", bg="black", height=1)
         toggle_VBG.grid(column=4, row=0)
 
+        # Pha layout tu doan nay, sorry
+
         # Select VBG
         button_explore = tk.Button(window,
 						text = "Browse Files",
 						command = self.browseFiles)
         button_explore.pack()
+
+        # Select save location
+        button_output_path = tk.Button(window,
+						text = "Save to",
+						command = self.chooseOutputPath)
+        button_output_path.pack()
+
+        # Het pha
 
         # Arrange Layout
         temp1 = tk.Label(f12, text="", width=5)
@@ -114,7 +124,13 @@ class App:
 
         self.window.mainloop()
 
-    def browseFiles(self, ):
+    def chooseOutputPath(self):
+        '''Open file explorer for chosing place to save images'''
+        self.output_path = tkinter.filedialog.askdirectory(initialdir="/",
+                                                        title="Choose a folder to save your images")
+
+    def browseFiles(self):
+        '''Open file explorer for chosing picture for virtual background'''
         filename = tkinter.filedialog.askopenfilename(initialdir = "/",
                                             title = "Select a File",
                                             filetypes = (("Image files",
@@ -132,7 +148,7 @@ class App:
         self.imgBG = cv2.cvtColor(self.imgBG, cv2.COLOR_BGR2RGB)
 
     def VBG(self):
-
+        '''Change Virtual Background button state'''
         self.is_segment = 1 - self.is_segment
         if toggle_VBG['text'] == 'Virtual Background: OFF':
             toggle_VBG['text'] = 'Virtual Background: ON'
@@ -140,9 +156,11 @@ class App:
             toggle_VBG['text'] = 'Virtual Background: OFF'
 
     def apply_filter(self, *args):
+        '''Get filter from dropdown'''
         self.feed_state = self.selected_filter.get()
 
     def update(self):
+        '''Update the video feed'''
         ret, frame = self.vid.get_frame()
         if ret:
             frame = self.set_feed_state(curr_frame=frame)
@@ -163,6 +181,7 @@ class App:
         self.send_noti(filename)
 
     def send_noti(self, filename):
+        '''Send system notification'''
         notification = Notify()
 
         notification.title = "PhotoBooth"
@@ -170,6 +189,7 @@ class App:
         notification.send()
 
     def set_feed_state(self, curr_frame):
+        '''Set filter for video feed'''
         if self.feed_state == "Black & White":
             curr_frame = cv2.cvtColor(curr_frame, cv2.COLOR_BGR2GRAY)
         if self.feed_state == "Inverse":
