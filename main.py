@@ -1,4 +1,5 @@
 import tkinter as tk
+import tkinter.filedialog
 from tkinter import ttk
 import cv2
 import PIL.Image, PIL.ImageTk
@@ -39,45 +40,46 @@ class App:
         self.window = window
         self.window.title(window_title)
 
-        self.segmentor = SelfiSegmentation()
-        self.is_segment = 0
-        self.wallpaper_list = ["Capybara-4K.jpg", "flower.jpg", "wall1.jpg"]
-        self.imgBG = cv2.imread("./wallpapers/" + self.wallpaper_list[0])
-
         self.feed_state = "Default"
 
         self.video_source = video_source
 
-        self.imgBG = cv2.resize(self.imgBG,
-                                (
-                                    640,
-                                    480
-                                ),
-                                interpolation=cv2.INTER_LINEAR)
-        self.imgBG = cv2.cvtColor(self.imgBG, cv2.COLOR_BGR2RGB)
+        self.imgBG = (0, 0, 0)
+        self.curr_state = None
+
+        self.segmentor = SelfiSegmentation()
+        self.is_segment = 0
 
         self.output_path = output_path
 
+        # App background
+        bg = tk.PhotoImage(file="bg.png")
+        bg1 = tk.Label(self.window, image=bg)
+        bg1.place(x=0, y=0)
+
         # App Layout and Elements
-        f11 = tk.Frame(self.window)
-        f12 = tk.Frame(self.window)
+        f11 = tk.Frame(self.window, borderwidth=2, relief="solid")
+        f12 = tk.Frame(f11)
+        f11.pack()
+        f12.grid(column=0, row=1)
 
         # Video Feed
         self.vid = VideoFeed(video_source)
-        self.canvas = tk.Canvas(f11, width=self.vid.width, height=self.vid.height, bg="black")
+        self.canvas = tk.Canvas(f11, width=self.vid.width, height=self.vid.height, borderwidth=2, relief="solid")
         self.canvas.grid(column=0, row=0)
 
         # Take Picture Button
         img = cv2.imread("pic.png")
-        img = cv2.resize(img, (70, 40))
+        img = cv2.resize(img, (80, 50))
         img = cv2.imwrite("pic.png", img)
         img1 = ImageTk.PhotoImage(Image.open("pic.png"))
 
         take_pic = tk.Button(f12, image=img1, command=self.take_photo, background="black")
+        take_pic["border"] = "0"
         take_pic.grid(column=2, row=0)
 
         # Filters List
-        filter_list = tk.Label(f12, text="Filters", fg="black", font="Times 13 bold")
+        filter_list = tk.Label(f12, text="Filters", fg="black", font="Times 15 bold")
         filter_list.grid(column=0, row=0)
 
         self.selected_filter = tk.StringVar()
@@ -91,18 +93,19 @@ class App:
 
         # Virtual Background
         global toggle_VBG
-        toggle_VBG = tk.Button(f12, text="Toggle Virtual Background: OFF", command=self.VBG, font="Times 13",
+        toggle_VBG = tk.Button(f12, text="Virtual Background: OFF", command=self.VBG, font="Times 13 bold",
                                fg="white", bg="black", height=1)
         toggle_VBG.grid(column=4, row=0)
 
-        self.selected_VBG = tk.StringVar()
-        VBG = ttk.Combobox(f12, textvariable=self.selected_VBG, font="Times 14")
-        VBG['values'] = self.wallpaper_list[:]
-        VBG.grid(column=4, row=2)
+        # Select VBG
+        button_explore = tk.Button(f12, text="Choose background image!", command=self.browseFiles, font="Times 13 bold",
+                                   fg="black", bg="white", relief="solid")
+        button_explore.grid(column=4, row=2)
 
-        VBG.current(0)
-        VBG['state'] = 'readonly'
-        VBG.bind('<<ComboboxSelected>>', self.apply_VBG)
+        # Select save location
+        button_output_path = tk.Button(f12, text="Change save location!", command=self.chooseOutputPath, font="Times 13 bold",
+                                       fg="white", bg="black")
+        button_output_path.grid(column=2, row=2)
 
         # Arrange Layout
         temp1 = tk.Label(f12, text="", width=5)
@@ -115,24 +118,25 @@ class App:
         temp3.grid(column=0, row=1)
         temp4.grid(column=4, row=1)
 
-        f11.pack()
-        f12.pack()
-
         self.delay = 1
         self.update()
 
         self.window.mainloop()
 
-    def VBG(self):
+    def chooseOutputPath(self):
+        '''Open file explorer for chosing place to save images'''
+        self.output_path = tkinter.filedialog.askdirectory(initialdir="/",
+                                                           title="Choose a folder to save your images")
 
-        self.is_segment = 1 - self.is_segment
-        if toggle_VBG['text'] == 'Toggle Virtual Background: OFF':
-            toggle_VBG['text'] = 'Toggle Virtual Background: ON'
-        else:
-            toggle_VBG['text'] = 'Toggle Virtual Background: OFF'
-
-    def apply_VBG(self, *args):
-        self.imgBG = cv2.imread("./wallpapers/" + self.selected_VBG.get())
+    def browseFiles(self):
+        '''Open file explorer for chosing picture for virtual background'''
+        filename = tkinter.filedialog.askopenfilename(initialdir="/",
+                                                      title="Select a File",
+                                                      filetypes=(("Image files",
+                                                                  ["*.jpg*", "*.png*"]),
+                                                                 ("all files",
+                                                                  "*.*")))
+        self.imgBG = cv2.imread(filename)
 
         self.imgBG = cv2.resize(self.imgBG,
                                 (
@@ -142,31 +146,41 @@ class App:
                                 interpolation=cv2.INTER_LINEAR)
         self.imgBG = cv2.cvtColor(self.imgBG, cv2.COLOR_BGR2RGB)
 
+    def VBG(self):
+        '''Change Virtual Background button state'''
+        self.is_segment = 1 - self.is_segment
+        if toggle_VBG['text'] == 'Virtual Background: OFF':
+            toggle_VBG['text'] = 'Virtual Background: ON'
+        else:
+            toggle_VBG['text'] = 'Virtual Background: OFF'
+
     def apply_filter(self, *args):
+        '''Get filter from dropdown'''
         self.feed_state = self.selected_filter.get()
 
     def update(self):
+        '''Update the video feed'''
         ret, frame = self.vid.get_frame()
         if ret:
             frame = self.set_feed_state(curr_frame=frame)
             if self.is_segment != 0:
-                frame = self.segmentor.removeBG(frame, self.imgBG, threshold=.5)
+                frame = self.segmentor.removeBG(frame, self.imgBG, threshold=.4)
             self.photo = PIL.ImageTk.PhotoImage(image=PIL.Image.fromarray(frame))
+            self.curr_state = frame
             self.canvas.create_image(0, 0, image=self.photo, anchor=tk.NW)
         self.window.after(self.delay, self.update)
 
     def take_photo(self):
         """ Take photo and save it to the file """
-        ret, frame = self.vid.get_frame()
         ts = datetime.datetime.now()
         filename = "{}.jpg".format(ts.strftime("%Y-%m-%d_%H-%M-%S"))
         p = os.path.join(self.output_path, filename)
-        if ret:
-            self.photo = PIL.Image.fromarray(frame)
-            self.photo.save(p, "JPEG")
-            self.send_noti(filename)
+        self.photo = PIL.Image.fromarray(self.curr_state)
+        self.photo.save(p, "JPEG")
+        self.send_noti(filename)
 
     def send_noti(self, filename):
+        '''Send system notification'''
         notification = Notify()
 
         notification.title = "PhotoBooth"
@@ -174,6 +188,7 @@ class App:
         notification.send()
 
     def set_feed_state(self, curr_frame):
+        '''Set filter for video feed'''
         if self.feed_state == "Black & White":
             curr_frame = cv2.cvtColor(curr_frame, cv2.COLOR_BGR2GRAY)
         if self.feed_state == "Inverse":
