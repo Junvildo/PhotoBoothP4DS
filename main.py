@@ -43,7 +43,7 @@ class App:
         self.feed_state = "Default"
 
         self.video_source = video_source
-        
+
         self.imgBG = (0, 0, 0)
         self.curr_state = None
 
@@ -52,26 +52,34 @@ class App:
 
         self.output_path = output_path
 
+        # App background
+        bg = tk.PhotoImage(file="bg.png")
+        bg1 = tk.Label(self.window, image=bg)
+        bg1.place(x=0, y=0)
+
         # App Layout and Elements
-        f11 = tk.Frame(self.window)
-        f12 = tk.Frame(self.window)
+        f11 = tk.Frame(self.window, borderwidth=2, relief="solid")
+        f12 = tk.Frame(f11)
+        f11.pack()
+        f12.grid(column=0, row=1)
 
         # Video Feed
         self.vid = VideoFeed(video_source)
-        self.canvas = tk.Canvas(f11, width=self.vid.width, height=self.vid.height, bg="black")
+        self.canvas = tk.Canvas(f11, width=self.vid.width, height=self.vid.height, borderwidth=2, relief="solid")
         self.canvas.grid(column=0, row=0)
 
         # Take Picture Button
         img = cv2.imread("pic.png")
-        img = cv2.resize(img, (70, 40))
+        img = cv2.resize(img, (80, 50))
         img = cv2.imwrite("pic.png", img)
         img1 = ImageTk.PhotoImage(Image.open("pic.png"))
 
         take_pic = tk.Button(f12, image=img1, command=self.take_photo, background="black")
+        take_pic["border"] = "0"
         take_pic.grid(column=2, row=0)
 
         # Filters List
-        filter_list = tk.Label(f12, text="Filters", fg="black", font="Times 13 bold")
+        filter_list = tk.Label(f12, text="Filters", fg="black", font="Times 15 bold")
         filter_list.grid(column=0, row=0)
 
         self.selected_filter = tk.StringVar()
@@ -85,25 +93,19 @@ class App:
 
         # Virtual Background
         global toggle_VBG
-        toggle_VBG = tk.Button(f12, text="Virtual Background: OFF", command=self.VBG, font="Times 13",
+        toggle_VBG = tk.Button(f12, text="Virtual Background: OFF", command=self.VBG, font="Times 13 bold",
                                fg="white", bg="black", height=1)
         toggle_VBG.grid(column=4, row=0)
 
-        # Pha layout tu doan nay, sorry
-
         # Select VBG
-        button_explore = tk.Button(window,
-						text = "Browse Files",
-						command = self.browseFiles)
-        button_explore.pack()
+        button_explore = tk.Button(f12, text="Choose background image!", command=self.browseFiles, font="Times 13 bold",
+                                   fg="black", bg="white", relief="solid")
+        button_explore.grid(column=4, row=2)
 
         # Select save location
-        button_output_path = tk.Button(window,
-						text = "Save to",
-						command = self.chooseOutputPath)
-        button_output_path.pack()
-
-        # Het pha
+        button_output_path = tk.Button(f12, text="Change save location!", command=self.chooseOutputPath, font="Times 13 bold",
+                                       fg="white", bg="black")
+        button_output_path.grid(column=2, row=2)
 
         # Arrange Layout
         temp1 = tk.Label(f12, text="", width=5)
@@ -116,9 +118,6 @@ class App:
         temp3.grid(column=0, row=1)
         temp4.grid(column=4, row=1)
 
-        f11.pack()
-        f12.pack()
-
         self.delay = 1
         self.update()
 
@@ -127,18 +126,18 @@ class App:
     def chooseOutputPath(self):
         '''Open file explorer for chosing place to save images'''
         self.output_path = tkinter.filedialog.askdirectory(initialdir="/",
-                                                        title="Choose a folder to save your images")
+                                                           title="Choose a folder to save your images")
 
     def browseFiles(self):
         '''Open file explorer for chosing picture for virtual background'''
-        filename = tkinter.filedialog.askopenfilename(initialdir = "/",
-                                            title = "Select a File",
-                                            filetypes = (("Image files",
-                                                            ["*.jpg*","*.png*"]),
-                                                        ("all files",
-                                                            "*.*")))
+        filename = tkinter.filedialog.askopenfilename(initialdir="/",
+                                                      title="Select a File",
+                                                      filetypes=(("Image files",
+                                                                  ["*.jpg*", "*.png*"]),
+                                                                 ("all files",
+                                                                  "*.*")))
         self.imgBG = cv2.imread(filename)
-        
+
         self.imgBG = cv2.resize(self.imgBG,
                                 (
                                     640,
