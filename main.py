@@ -10,6 +10,7 @@ from PIL import ImageTk, Image
 from notifypy import Notify
 import cvzone
 from cvzone.SelfiSegmentationModule import SelfiSegmentation
+import json
 
 
 class VideoFeed:
@@ -35,7 +36,7 @@ class VideoFeed:
 
 
 class App:
-    def __init__(self, window, window_title, video_source=0, output_path="./"):
+    def __init__(self, window, window_title, video_source=0, output_path="./", BG_path="./"):
         # App Variables
         self.window = window
         self.window.title(window_title)
@@ -51,11 +52,13 @@ class App:
         self.is_segment = 0
 
         self.output_path = output_path
-
+        self.BG_path = BG_path
+        
+        self.settings = {}
         # App background
-        bg = tk.PhotoImage(file="bg.png")
-        bg1 = tk.Label(self.window, image=bg)
-        bg1.place(x=0, y=0)
+        #bg = tk.PhotoImage(file="bg.png")
+        #bg1 = tk.Label(self.window, image=bg)
+        #bg1.place(x=0, y=0)
 
         # App Layout and Elements
         f11 = tk.Frame(self.window, borderwidth=2, relief="solid")
@@ -69,10 +72,11 @@ class App:
         self.canvas.grid(column=0, row=0)
 
         # Take Picture Button
-        img = cv2.imread("pic.png")
+        take_pic_icon_path = "pic.png"
+        img = cv2.imread(take_pic_icon_path)
         img = cv2.resize(img, (80, 50))
-        img = cv2.imwrite("pic.png", img)
-        img1 = ImageTk.PhotoImage(Image.open("pic.png"))
+        img = cv2.imwrite(take_pic_icon_path, img)
+        img1 = ImageTk.PhotoImage(Image.open(take_pic_icon_path))
 
         take_pic = tk.Button(f12, image=img1, command=self.take_photo, background="black")
         take_pic["border"] = "0"
@@ -93,17 +97,18 @@ class App:
 
         # Virtual Background
         global toggle_VBG
-        toggle_VBG = tk.Button(f12, text="Virtual Background: OFF", command=self.VBG, font="Times 13 bold",
+        font_UI = "Times 13 bold"
+        toggle_VBG = tk.Button(f12, text="Virtual Background: OFF", command=self.VBG, font=font_UI,
                                fg="white", bg="black", height=1)
         toggle_VBG.grid(column=4, row=0)
 
         # Select VBG
-        button_explore = tk.Button(f12, text="Choose background image!", command=self.browseFiles, font="Times 13 bold",
+        button_explore = tk.Button(f12, text="Choose background image!", command=self.browseFiles, font=font_UI,
                                    fg="black", bg="white", relief="solid")
         button_explore.grid(column=4, row=2)
 
         # Select save location
-        button_output_path = tk.Button(f12, text="Change save location!", command=self.chooseOutputPath, font="Times 13 bold",
+        button_output_path = tk.Button(f12, text="Change save location!", command=self.chooseOutputPath, font=font_UI,
                                        fg="white", bg="black")
         button_output_path.grid(column=2, row=2)
 
@@ -120,23 +125,23 @@ class App:
 
         self.delay = 1
         self.update()
-
         self.window.mainloop()
 
     def chooseOutputPath(self):
         '''Open file explorer for chosing place to save images'''
-        self.output_path = tkinter.filedialog.askdirectory(initialdir="/",
+        self.output_path = tkinter.filedialog.askdirectory(initialdir=self.output_path,
                                                            title="Choose a folder to save your images")
+        return self.save_settings(self.output_path, self.BG_path)
 
     def browseFiles(self):
         '''Open file explorer for chosing picture for virtual background'''
-        filename = tkinter.filedialog.askopenfilename(initialdir="/",
+        self.BG_path = tkinter.filedialog.askopenfilename(initialdir=self.BG_path,
                                                       title="Select a File",
                                                       filetypes=(("Image files",
                                                                   ["*.jpg*", "*.png*"]),
                                                                  ("all files",
                                                                   "*.*")))
-        self.imgBG = cv2.imread(filename)
+        self.imgBG = cv2.imread(self.BG_path)
 
         self.imgBG = cv2.resize(self.imgBG,
                                 (
@@ -145,6 +150,7 @@ class App:
                                 ),
                                 interpolation=cv2.INTER_LINEAR)
         self.imgBG = cv2.cvtColor(self.imgBG, cv2.COLOR_BGR2RGB)
+        return self.save_settings(BG_path=self.BG_path, output_path=None)
 
     def VBG(self):
         '''Change Virtual Background button state'''
@@ -196,7 +202,19 @@ class App:
         else:
             curr_frame = cv2.cvtColor(curr_frame, cv2.COLOR_BGR2RGB)
         return curr_frame
+    
+    def save_settings(self, output_path, BG_path):
+        if output_path != None:
+            self.settings["output_path"] = output_path
+        if BG_path != None:
+            self.settings["BG_path"] = os.path.dirname(BG_path)
+        with open("config.json", "w") as f:
+            json.dump(self.settings, f, indent=4)
 
 
 if __name__ == "__main__":
-    App(tk.Tk(), "Photo Booth", 0)
+    with open('config.json', 'r') as f:
+        config = json.load(f)
+    App(tk.Tk(), "Photo Booth", 0, output_path=config["output_path"], BG_path=config["BG_path"])
+    
+
