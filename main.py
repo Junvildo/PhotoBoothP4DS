@@ -1,3 +1,4 @@
+import time
 import tkinter as tk
 import tkinter.filedialog
 from tkinter import ttk
@@ -5,12 +6,33 @@ import cv2
 import PIL.Image, PIL.ImageTk
 import datetime
 import os
+import matplotlib.pyplot as plt
+import numpy as np
 
 from PIL import ImageTk, Image
 from notifypy import Notify
 import cvzone
 from cvzone.SelfiSegmentationModule import SelfiSegmentation
 import json
+
+
+def cmyk_to_rgb(image, cmyk_scale):
+    rgb_scale = 255
+    image = np.array(image)
+    c, m, y, k = np.dsplit(image, image.shape[-1])
+
+    # Convert CMYK to RGB
+    r = rgb_scale * (1.0 - c / cmyk_scale) * (1.0 - k / cmyk_scale)
+    g = rgb_scale * (1.0 - m / cmyk_scale) * (1.0 - k / cmyk_scale)
+    b = rgb_scale * (1.0 - y / cmyk_scale) * (1.0 - k / cmyk_scale)
+
+    # Combine RGB channels into a single image
+    rgb_image = np.concatenate([r, g, b], axis=2)
+
+    # Ensure the RGB values are within the valid range
+    rgb_image = np.clip(rgb_image, 0, rgb_scale).astype(np.uint8)
+
+    return rgb_image
 
 
 class VideoFeed:
@@ -30,14 +52,15 @@ class VideoFeed:
             ret, frame = self.vid.read()
             frame = cv2.resize(frame, (640, 480))
             if ret:
-                return (ret, frame)
+                return ret, frame
             else:
-                return (ret, None)
+                return ret, None
 
 
 class App:
     def __init__(self, window, window_title, video_source=0, output_path="./", BG_path="./"):
         # App Variables
+        self.photo = None
         self.window = window
         self.window.title(window_title)
 
@@ -48,17 +71,17 @@ class App:
         self.imgBG = (0, 0, 0)
         self.curr_state = None
 
-        self.segmentor = SelfiSegmentation()
+        self.segment = SelfiSegmentation()
         self.is_segment = 0
 
         self.output_path = output_path
         self.BG_path = BG_path
-        
+
         self.settings = {}
         # App background
-        #bg = tk.PhotoImage(file="bg.png")
-        #bg1 = tk.Label(self.window, image=bg)
-        #bg1.place(x=0, y=0)
+        # bg = tk.PhotoImage(file="bg.png")
+        # bg1 = tk.Label(self.window, image=bg)
+        # bg1.place(x=0, y=0)
 
         # App Layout and Elements
         f11 = tk.Frame(self.window, borderwidth=2, relief="solid")
@@ -128,32 +151,36 @@ class App:
         self.window.mainloop()
 
     def chooseOutputPath(self):
-        '''Open file explorer for chosing place to save images'''
+        """Open file explorer for choosing place to save images"""
         self.output_path = tkinter.filedialog.askdirectory(initialdir=self.output_path,
                                                            title="Choose a folder to save your images")
         return self.save_settings(self.output_path, self.BG_path)
 
     def browseFiles(self):
-        '''Open file explorer for chosing picture for virtual background'''
+        """Open file explorer for choosing picture for virtual background"""
         self.BG_path = tkinter.filedialog.askopenfilename(initialdir=self.BG_path,
-                                                      title="Select a File",
-                                                      filetypes=(("Image files",
-                                                                  ["*.jpg*", "*.png*"]),
-                                                                 ("all files",
-                                                                  "*.*")))
-        self.imgBG = cv2.imread(self.BG_path)
+                                                          title="Select a File",
+                                                          filetypes=(("Image files",
+                                                                      ["*.jpg*", "*.png*"]),
+                                                                     ("all files",
+                                                                      "*.*")))
+        self.imgBG = Image.open(self.BG_path)
 
+        if self.imgBG.mode == 'CMYK':
+            self.imgBG = Image.new("RGB", self.imgBG.size)
+            self.imgBG.paste(self.imgBG)
+
+        self.imgBG = np.array(self.imgBG)[:, :, 0:3]
         self.imgBG = cv2.resize(self.imgBG,
                                 (
                                     640,
                                     480
                                 ),
                                 interpolation=cv2.INTER_LINEAR)
-        self.imgBG = cv2.cvtColor(self.imgBG, cv2.COLOR_BGR2RGB)
         return self.save_settings(BG_path=self.BG_path, output_path=None)
 
     def VBG(self):
-        '''Change Virtual Background button state'''
+        """Change Virtual Background button state"""
         self.is_segment = 1 - self.is_segment
         if toggle_VBG['text'] == 'Virtual Background: OFF':
             toggle_VBG['text'] = 'Virtual Background: ON'
@@ -161,16 +188,16 @@ class App:
             toggle_VBG['text'] = 'Virtual Background: OFF'
 
     def apply_filter(self, *args):
-        '''Get filter from dropdown'''
+        """Get filter from dropdown"""
         self.feed_state = self.selected_filter.get()
 
     def update(self):
-        '''Update the video feed'''
+        """Update the video feed"""
         ret, frame = self.vid.get_frame()
         if ret:
             frame = self.set_feed_state(curr_frame=frame)
             if self.is_segment != 0:
-                frame = self.segmentor.removeBG(frame, self.imgBG, threshold=.4)
+                frame = self.segment.removeBG(frame, self.imgBG, threshold=.7)
             self.photo = PIL.ImageTk.PhotoImage(image=PIL.Image.fromarray(frame))
             self.curr_state = frame
             self.canvas.create_image(0, 0, image=self.photo, anchor=tk.NW)
@@ -186,7 +213,7 @@ class App:
         self.send_noti(filename)
 
     def send_noti(self, filename):
-        '''Send system notification'''
+        """Send system notification"""
         notification = Notify()
 
         notification.title = "PhotoBooth"
@@ -194,27 +221,30 @@ class App:
         notification.send()
 
     def set_feed_state(self, curr_frame):
-        '''Set filter for video feed'''
+        """Set filter for video feed"""
         if self.feed_state == "Black & White":
             curr_frame = cv2.cvtColor(curr_frame, cv2.COLOR_BGR2GRAY)
         if self.feed_state == "Inverse":
-            curr_frame == cv2.bitwise_not(curr_frame)
+            curr_frame = cv2.bitwise_not(curr_frame)
         else:
             curr_frame = cv2.cvtColor(curr_frame, cv2.COLOR_BGR2RGB)
         return curr_frame
-    
+
     def save_settings(self, output_path, BG_path):
-        if output_path != None:
+        if output_path is not None:
             self.settings["output_path"] = output_path
-        if BG_path != None:
+        if BG_path is not None:
             self.settings["BG_path"] = os.path.dirname(BG_path)
         with open("config.json", "w") as f:
             json.dump(self.settings, f, indent=4)
 
 
 if __name__ == "__main__":
-    with open('config.json', 'r') as f:
+    with open('./config.json', 'r') as f:
         config = json.load(f)
-    App(tk.Tk(), "Photo Booth", 0, output_path=config["output_path"], BG_path=config["BG_path"])
-    
-
+    out_path = None if "output_path" not in config else config["output_path"]
+    BG_path = None if "BG_path" not in config else config["BG_path"]
+    App(tk.Tk(), "Photo Booth", 0,
+        output_path=out_path,
+        BG_path=BG_path
+        )
