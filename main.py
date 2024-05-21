@@ -1,38 +1,17 @@
-import time
+import datetime
+import json
+import os
 import tkinter as tk
 import tkinter.filedialog
 from tkinter import ttk
+
+import PIL.Image
+import PIL.ImageTk
 import cv2
-import PIL.Image, PIL.ImageTk
-import datetime
-import os
-import matplotlib.pyplot as plt
 import numpy as np
-
 from PIL import ImageTk, Image
-from notifypy import Notify
-import cvzone
 from cvzone.SelfiSegmentationModule import SelfiSegmentation
-import json
-
-
-def cmyk_to_rgb(image, cmyk_scale):
-    rgb_scale = 255
-    image = np.array(image)
-    c, m, y, k = np.dsplit(image, image.shape[-1])
-
-    # Convert CMYK to RGB
-    r = rgb_scale * (1.0 - c / cmyk_scale) * (1.0 - k / cmyk_scale)
-    g = rgb_scale * (1.0 - m / cmyk_scale) * (1.0 - k / cmyk_scale)
-    b = rgb_scale * (1.0 - y / cmyk_scale) * (1.0 - k / cmyk_scale)
-
-    # Combine RGB channels into a single image
-    rgb_image = np.concatenate([r, g, b], axis=2)
-
-    # Ensure the RGB values are within the valid range
-    rgb_image = np.clip(rgb_image, 0, rgb_scale).astype(np.uint8)
-
-    return rgb_image
+from notifypy import Notify
 
 
 class VideoFeed:
@@ -121,8 +100,8 @@ class App:
         # Virtual Background
         global toggle_VBG
         font_UI = "Times 13 bold"
-        toggle_VBG = tk.Button(f12, text="Virtual Background: OFF", command=self.VBG, font=font_UI,
-                               fg="white", bg="black", height=1)
+        toggle_VBG = tk.Button(f12, text="Virtual Background: OFF", command=self.VBG, font=font_UI, fg="white",
+                               bg="black", height=1)
         toggle_VBG.grid(column=4, row=0)
 
         # Select VBG
@@ -158,12 +137,8 @@ class App:
 
     def browseFiles(self):
         """Open file explorer for choosing picture for virtual background"""
-        self.BG_path = tkinter.filedialog.askopenfilename(initialdir=self.BG_path,
-                                                          title="Select a File",
-                                                          filetypes=(("Image files",
-                                                                      ["*.jpg*", "*.png*"]),
-                                                                     ("all files",
-                                                                      "*.*")))
+        self.BG_path = tkinter.filedialog.askopenfilename(initialdir=self.BG_path, title="Select a File", filetypes=(
+        ("Image files", ["*.jpg*", "*.png*"]), ("all files", "*.*")))
         self.imgBG = Image.open(self.BG_path)
 
         if self.imgBG.mode == 'CMYK':
@@ -171,12 +146,7 @@ class App:
             self.imgBG.paste(self.imgBG)
 
         self.imgBG = np.array(self.imgBG)[:, :, 0:3]
-        self.imgBG = cv2.resize(self.imgBG,
-                                (
-                                    640,
-                                    480
-                                ),
-                                interpolation=cv2.INTER_LINEAR)
+        self.imgBG = cv2.resize(self.imgBG, (640, 480), interpolation=cv2.INTER_LINEAR)
         return self.save_settings(BG_path=self.BG_path, output_path=None)
 
     def VBG(self):
@@ -244,7 +214,4 @@ if __name__ == "__main__":
         config = json.load(f)
     out_path = None if "output_path" not in config else config["output_path"]
     BG_path = None if "BG_path" not in config else config["BG_path"]
-    App(tk.Tk(), "Photo Booth", 0,
-        output_path=out_path,
-        BG_path=BG_path
-        )
+    App(tk.Tk(), "Photo Booth", 0, output_path=out_path, BG_path=BG_path)
